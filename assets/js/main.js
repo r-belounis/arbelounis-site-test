@@ -479,9 +479,19 @@
 
       if (endpoint) {
         setLoading(true);
+        // Real bug found live (2026-09-13): the Worker's own server-side
+        // timing check (defense in depth, doesn't just trust this same
+        // client-side looksLikeBot() check above) needs `submittedAt` to
+        // actually be present in the POSTed FormData -- it isn't a real
+        // form field (only `loadedAt` is), so it has to be set here
+        // explicitly. Its absence silently rejected every real
+        // submission as "too fast" (null fails closed), even though
+        // looksLikeBot() itself had already correctly passed it.
+        var postData = new FormData(form);
+        postData.set('submittedAt', String(Date.now()));
         var fetchOptions = {
           method: 'POST',
-          body: new FormData(form),
+          body: postData,
           headers: { Accept: 'application/json' },
         };
         fetch(endpoint, fetchOptions)
