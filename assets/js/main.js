@@ -489,6 +489,19 @@
         // looksLikeBot() itself had already correctly passed it.
         var postData = new FormData(form);
         postData.set('submittedAt', String(Date.now()));
+        // Real bug found live (2026-09-13): the CTA modal's own
+        // motif dropdown posts its raw <option> VALUE (a plain
+        // numeric index into ctaReasonPresets, e.g. "0") -- fine for
+        // this file's own JS logic, but meaningless in the actual
+        // email a real person reads. The mailto path already resolves
+        // this to the option's real display text; do the same here so
+        // both delivery paths show a real motif, not a bare index.
+        if (form.elements.ctaReasonPreset) {
+          var reasonSelect = form.elements.ctaReasonPreset;
+          if (reasonSelect.selectedIndex >= 0) {
+            postData.set('ctaReasonPreset', reasonSelect.options[reasonSelect.selectedIndex].text);
+          }
+        }
         var fetchOptions = {
           method: 'POST',
           body: postData,
