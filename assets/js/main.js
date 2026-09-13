@@ -499,7 +499,15 @@
         if (form.elements.ctaReasonPreset) {
           var reasonSelect = form.elements.ctaReasonPreset;
           if (reasonSelect.selectedIndex >= 0) {
-            postData.set('ctaReasonPreset', reasonSelect.options[reasonSelect.selectedIndex].text);
+            var selectedOpt = reasonSelect.options[reasonSelect.selectedIndex];
+            postData.set('ctaReasonPreset', selectedOpt.text);
+            // Real client-configured label (2026-09-13, Theme Settings ->
+            // Paramètres de contact -> Champs du formulaire -> Motifs de
+            // la demande -> "Libellé du champ", e.g. "Nom du médecin") --
+            // the email should show the exact same label the visitor saw
+            // on the form, not a generic hardcoded one.
+            var detailLabel = selectedOpt.getAttribute('data-detail-label');
+            if (detailLabel) postData.set('ctaReasonDetailLabel', detailLabel);
           }
         }
         var fetchOptions = {
