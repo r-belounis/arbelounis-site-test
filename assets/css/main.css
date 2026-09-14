@@ -2482,6 +2482,14 @@ body[data-cta-arrow=on] .btn-sec:hover::after {
   display: none !important;
 }
 
+/* Same real gotcha as .contact-form[hidden] above, applied to the
+   per-motif "Précisez votre demande" field (2026-09-14) --
+   .contact-form-group{display:flex} always beats the UA's own
+   [hidden]{display:none} regardless of specificity/order. */
+.cta-motif-precision[hidden] {
+  display: none !important;
+}
+
 .contact-form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

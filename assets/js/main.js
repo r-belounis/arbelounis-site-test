@@ -312,6 +312,12 @@
     ctaReasonPreset: function (v) {
       return v.trim().length > 0;
     },
+    // Real, per-motif conditional field (2026-09-14) -- shown/required
+    // live per the selected motif's own "Précision" setting, see the
+    // reason-preset change handler further down this file.
+    ctaMotifPrecision: function (v) {
+      return v.trim().length > 0;
+    },
   };
 
   // The CTA modal's own field list (2026-09-14, plan Phase 5.7, second
@@ -359,6 +365,18 @@
       .filter(function (name, i, arr) {
         return name && arr.indexOf(name) === i;
       });
+    // The per-motif "Précisez votre demande" field (2026-09-14, real
+    // request) starts without `required` in the static markup -- its
+    // own motif row decides show/hide + required live (see the
+    // reason-preset change handler further down this file) -- but it
+    // still needs blur/input listeners wired up from page load like
+    // every other field, so it's added here even though `[required]`
+    // didn't catch it. `validateAll`'s own `[hidden]` guard above
+    // already skips it correctly whenever the current motif doesn't
+    // reveal it.
+    if (form.elements.ctaMotifPrecision && requiredFields.indexOf('ctaMotifPrecision') === -1) {
+      requiredFields.push('ctaMotifPrecision');
+    }
     function fieldErrorEl(input) {
       var wrap = input.closest('.contact-form-group');
       return wrap ? wrap.querySelector('.field-error') : null;
@@ -385,9 +403,13 @@
       requiredFields.forEach(function (name) {
         var input = form.elements[name];
         if (!input) return;
+        // ctaMotifPrecision's own `required` is toggled live (per
+        // selected motif's own "Précision" setting), not fixed at page
+        // load like every other field here -- check the CURRENT state.
+        if (!input.required) return;
         // Never require a field the visitor can't currently see or fill
-        // in (defensive -- no field in this form is conditionally hidden
-        // as of Phase 5.7, but a future one might be).
+        // in (the per-motif précision field is hidden unless its motif
+        // reveals it).
         if (input.closest('[hidden]')) return;
         if (!validateField(name)) ok = false;
       });
@@ -634,6 +656,11 @@
             lines.push(fieldLabel + ' : ' + fieldValue);
           }
           if (reason) lines.push('Motif : ' + reason);
+          // Real, per-motif conditional field (2026-09-14) -- only ever
+          // has a value when the selected motif's own "Précision"
+          // setting revealed it.
+          var motifPrecision = get('ctaMotifPrecision');
+          if (motifPrecision) lines.push('Précisez votre demande de rendez-vous : ' + motifPrecision);
           body = lines.join('\n');
         } else {
           subject = 'Message de ' + (get('prenom') + ' ' + get('nom')).trim();
@@ -861,6 +888,35 @@
       }
     });
   }
+
+  /* ─── "Motif de la demande" -> per-motif "Précisez votre demande" ───
+     Real, per-motif conditional field (2026-09-14) -- each motif's own
+     "Précision" setting (Theme Settings -> Motifs de la demande,
+     rendered as `data-precision` on the selected <option>: "off"/"opt"/
+     "req") decides whether `#cta-motif-precision-group` shows at all,
+     and whether it's required. Fixed label this time (no per-motif
+     custom text like the old, Phase 5.7-removed design) -- simpler,
+     genuinely just show/hide + required, nothing else to keep in sync.
+     `.cta-motif-precision[hidden]` (_contact-form.scss) is what makes
+     the `hidden` attribute set here actually take effect -- same
+     specificity fix this project has needed several times before. */
+  document.querySelectorAll('select[name="ctaReasonPreset"]').forEach(function (select) {
+    var form = select.closest('form');
+    if (!form) return;
+    var group = form.querySelector('#cta-motif-precision-group');
+    var field = form.querySelector('#cta-motif-precision');
+    if (!group || !field) return;
+    function updateVisibility() {
+      var opt = select.options[select.selectedIndex];
+      var precision = opt ? opt.getAttribute('data-precision') : 'off';
+      var visible = precision === 'opt' || precision === 'req';
+      group.hidden = !visible;
+      field.required = precision === 'req';
+      if (!visible) field.value = '';
+    }
+    select.addEventListener('change', updateVisibility);
+    updateVisibility();
+  });
 
   /* ─── Diaporama d'images (image-slider component) ───
      The HTML/CSS alone already gives a real, swipeable slider (CSS
