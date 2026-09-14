@@ -768,6 +768,19 @@
       if (ctaModalForm) ctaModalForm.hidden = false;
       if (ctaModalSeparator) ctaModalSeparator.hidden = false;
       if (ctaModalCall) ctaModalCall.hidden = false;
+      // Real bug found live (2026-09-14): a Turnstile token is single-use
+      // -- after one failed/errored submit, "Réessayer" showed the form
+      // again with the widget still visually "checked", but that same
+      // already-consumed token got resubmitted on the next attempt,
+      // which Cloudflare correctly rejects (403, captcha_failed) even
+      // though nothing looks wrong to the visitor. `turnstile.reset()`
+      // issues a fresh challenge/token for the same widget; safe to call
+      // even when no widget is on this form (ctaMode "mailto"/"telephone")
+      // or the script hasn't loaded yet.
+      var turnstileEl = ctaModalForm ? ctaModalForm.querySelector('.cf-turnstile') : null;
+      if (turnstileEl && window.turnstile && typeof window.turnstile.reset === 'function') {
+        window.turnstile.reset(turnstileEl);
+      }
     }
     if (ctaResultRetryBtn) ctaResultRetryBtn.addEventListener('click', ctaResetResultView);
 
