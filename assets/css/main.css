@@ -2449,6 +2449,20 @@ body[data-cta-arrow=on] .btn-sec:hover::after {
   margin-bottom: 20px;
 }
 
+/* One shared legend for the whole form (2026-09-14, plan Phase 5.7) --
+   replaces a verbose "obligatoire"/"optionnel" word repeated on every
+   field. Quiet by design: small, dimmed text, stated once. */
+.contact-form-legend {
+  font-size: 12.5px;
+  color: var(--text-2);
+  margin: -8px 0 4px;
+}
+
+.req-star {
+  color: var(--accent-2, var(--accent));
+  font-weight: 700;
+}
+
 .contact-form {
   display: flex;
   flex-direction: column;

@@ -290,6 +290,9 @@
         alert+toast. No action= means the mailto: fallback, paired with an
         INFO alert+toast -- never a false "success", since a static site
         can't confirm a mailto: link was actually sent. */
+  // "Formulaire de contact" (the separate, page-placeable component,
+  // temporarily mailto-only) still uses these fixed field names --
+  // unaffected by the CTA modal's own Phase 5.7 rework below.
   var CONTACT_FORM_VALIDATORS = {
     prenom: function (v) {
       return v.trim().length > 0;
@@ -309,12 +312,28 @@
     ctaReasonPreset: function (v) {
       return v.trim().length > 0;
     },
-    // One generic detail field now (was 5 separately-named ones) -- see
-    // the "Motif de la demande" repeater block further down, which is
-    // also what toggles this field's real `required` attribute per
-    // selected preset (client-editable, so no per-preset name survives
-    // to hardcode here anymore).
-    ctaReasonDetail: function (v) {
+  };
+
+  // The CTA modal's own field list (2026-09-14, plan Phase 5.7, second
+  // revision) is now fully agnostic -- Theme Settings -> Paramètres de
+  // contact -> Champs du formulaire -> "Champs", a real repeater. Field
+  // *names* are purely positional (ctaField0, ctaField1…), so there's no
+  // longer a fixed name to key a validator off -- each rendered field
+  // instead carries its own `data-field-type` (footer.hbs), read here to
+  // pick the right check. `email`/`tel` real-format checks kept, per
+  // direct request, rather than dropped to a bare `text`/`textarea`
+  // pair when the type/required system was generalized.
+  var FIELD_TYPE_VALIDATORS = {
+    text: function (v) {
+      return v.trim().length > 0;
+    },
+    textarea: function (v) {
+      return v.trim().length > 0;
+    },
+    email: function (v) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+    },
+    tel: function (v) {
       return v.trim().length > 0;
     },
   };
@@ -340,16 +359,6 @@
       .filter(function (name, i, arr) {
         return name && arr.indexOf(name) === i;
       });
-    // The CTA modal's generic reason-detail field starts without
-    // `required` in the markup -- only one preset's own "demander une
-    // précision" setting applies it, toggled live by the reason-preset
-    // change handler further down this file -- but it still needs its
-    // blur/input listeners wired up from page load like every other
-    // field, so it's added here even though `[required]` didn't catch it.
-    if (form.elements.ctaReasonDetail && requiredFields.indexOf('ctaReasonDetail') === -1) {
-      requiredFields.push('ctaReasonDetail');
-    }
-
     function fieldErrorEl(input) {
       var wrap = input.closest('.contact-form-group');
       return wrap ? wrap.querySelector('.field-error') : null;
@@ -357,7 +366,14 @@
     function validateField(name) {
       var input = form.elements[name];
       if (!input) return true;
-      var valid = CONTACT_FORM_VALIDATORS[name](input.value);
+      // CTA modal fields (2026-09-14, plan Phase 5.7) carry their own
+      // data-field-type instead of having a fixed name to look up --
+      // "Formulaire de contact"'s fixed-name fields (and the CTA
+      // modal's own "Motif de la demande") fall back to the by-name
+      // table exactly as before.
+      var fieldType = input.getAttribute && input.getAttribute('data-field-type');
+      var validator = fieldType ? FIELD_TYPE_VALIDATORS[fieldType] : CONTACT_FORM_VALIDATORS[name];
+      var valid = validator ? validator(input.value) : true;
       input.classList.toggle('is-error', !valid);
       input.classList.toggle('is-success', valid && input.value.trim() !== '');
       var err = fieldErrorEl(input);
@@ -369,14 +385,9 @@
       requiredFields.forEach(function (name) {
         var input = form.elements[name];
         if (!input) return;
-        // ctaReasonDetail's own `required` is toggled live (per selected
-        // preset's "demander une précision" setting), not fixed at page
-        // load like every other field here -- check the CURRENT state,
-        // not whatever it was when `requiredFields` was first computed.
-        if (!input.required) return;
         // Never require a field the visitor can't currently see or fill
-        // in (the CTA modal's reason-detail field is hidden unless its
-        // preset asks for it).
+        // in (defensive -- no field in this form is conditionally hidden
+        // as of Phase 5.7, but a future one might be).
         if (input.closest('[hidden]')) return;
         if (!validateField(name)) ok = false;
       });
@@ -501,13 +512,6 @@
           if (reasonSelect.selectedIndex >= 0) {
             var selectedOpt = reasonSelect.options[reasonSelect.selectedIndex];
             postData.set('ctaReasonPreset', selectedOpt.text);
-            // Real client-configured label (2026-09-13, Theme Settings ->
-            // Paramètres de contact -> Champs du formulaire -> Motifs de
-            // la demande -> "Libellé du champ", e.g. "Nom du médecin") --
-            // the email should show the exact same label the visitor saw
-            // on the form, not a generic hardcoded one.
-            var detailLabel = selectedOpt.getAttribute('data-detail-label');
-            if (detailLabel) postData.set('ctaReasonDetailLabel', detailLabel);
           }
         }
         var fetchOptions = {
@@ -610,29 +614,26 @@
         var subject, body;
         if (isCtaForm) {
           // The "Prendre rendez-vous" modal -- no free-text message field,
-          // composes from the structured prénom/nom/téléphone/email/motif
-          // fields instead. The reason preset's own label is now client-
-          // editable text (Theme Settings repeater), so it's read straight
-          // off the selected <option>'s visible text -- no hardcoded
-          // lookup table to keep in sync with it anymore.
+          // composes from the agnostic ctaField{n}/ctaFieldLabel{n} pairs
+          // (2026-09-14, plan Phase 5.7, second revision) plus Motif,
+          // which stays its own separate mechanism. Nothing here is a
+          // fixed field name anymore -- whatever the client configured in
+          // Theme Settings -> Champs du formulaire is exactly what shows
+          // up, in the order they configured it.
           var presetSelect = form.elements.ctaReasonPreset;
-          var presetLabel =
-            presetSelect.selectedIndex >= 0
+          var reason =
+            presetSelect && presetSelect.selectedIndex >= 0
               ? presetSelect.options[presetSelect.selectedIndex].text
               : '';
-          var detail = get('ctaReasonDetail');
-          var reason = detail ? presetLabel + ' — ' + detail : presetLabel;
           subject = 'Prise de rendez-vous' + (reason ? ' (' + reason + ')' : '');
-          var lines = [
-            'Prénom : ' + get('prenom'),
-            'Nom : ' + get('nom'),
-            'Téléphone : ' + get('telephone'),
-          ];
-          var ctaEmail = get('email');
-          if (ctaEmail) lines.push('Email : ' + ctaEmail);
+          var lines = [];
+          for (var fi = 0; form.elements['ctaField' + fi]; fi += 1) {
+            var fieldValue = get('ctaField' + fi);
+            if (!fieldValue) continue;
+            var fieldLabel = get('ctaFieldLabel' + fi) || 'Champ';
+            lines.push(fieldLabel + ' : ' + fieldValue);
+          }
           if (reason) lines.push('Motif : ' + reason);
-          var explanation = get('ctaExplanation');
-          if (explanation) lines.push('Explication : ' + explanation);
           body = lines.join('\n');
         } else {
           subject = 'Message de ' + (get('prenom') + ' ' + get('nom')).trim();
@@ -860,40 +861,6 @@
       }
     });
   }
-
-  /* ─── "Motif de la demande" preset -> detail field show/hide ───
-     The CTA modal's reason list is now a client-editable repeater
-     (Theme Settings -> Paramètres de contact -> Champs du formulaire),
-     so there's one generic detail field instead of a fixed one per
-     preset -- its label text, textarea height, and whether it's
-     required at all are read live off the selected <option>'s own
-     data-ask-detail/data-detail-label/data-detail-rows (set from that
-     repeater row in partials/footer.hbs). Real JS, not Publii's
-     `dependencies` mechanism, since this is rendered-page markup, not a
-     Theme Settings field. `.contact-form-group[hidden]` (_contact-form.
-     scss) is what actually makes the `hidden` attribute set here take
-     effect -- same specificity fix this project has needed several
-     times before for other `[hidden]` elements. */
-  document.querySelectorAll('select[name="ctaReasonPreset"]').forEach(function (select) {
-    var form = select.closest('form');
-    if (!form) return;
-    var group = form.querySelector('#cta-reason-detail-group');
-    var field = form.querySelector('#cta-reason-detail');
-    var labelEl = group ? group.querySelector('.contact-form-label') : null;
-    if (!group || !field) return;
-    function updateVisibility() {
-      var opt = select.options[select.selectedIndex];
-      var askDetail = !!opt && opt.getAttribute('data-ask-detail') === 'true';
-      group.hidden = !askDetail;
-      field.required = askDetail;
-      if (!askDetail) return;
-      if (labelEl) labelEl.textContent = opt.getAttribute('data-detail-label') || '';
-      var rows = parseInt(opt.getAttribute('data-detail-rows'), 10);
-      field.rows = rows > 0 ? rows : 1;
-    }
-    select.addEventListener('change', updateVisibility);
-    updateVisibility();
-  });
 
   /* ─── Diaporama d'images (image-slider component) ───
      The HTML/CSS alone already gives a real, swipeable slider (CSS
