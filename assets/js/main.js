@@ -355,6 +355,14 @@
   var ctaHandleResult = null;
 
   document.querySelectorAll('form.contact-form').forEach(function (form) {
+    // Real, robust "is this the sitewide CTA modal's own form" check
+    // (2026-09-14, plan Phase 5.7b) -- since "Formulaire de contact" now
+    // shares the exact same field set (ctaFormFields/ctaReasonPreset)
+    // as the modal, `form.elements.ctaReasonPreset` alone can no longer
+    // tell the two apart (both have it). Only the modal's own form has
+    // a real #cta-result sibling to swap in -- checked structurally via
+    // its real container, not a field guess.
+    var isCtaModalForm = !!form.closest('#cta-modal');
     // Real `required` attribute per field present in *this* form instance
     // -- correctly differs between the two forms sharing this handler.
     var requiredFields = Array.prototype.slice
@@ -478,7 +486,7 @@
     }
     function showSilentSuccess() {
       form.reset();
-      if (ctaHandleResult && form.elements.ctaReasonPreset) {
+      if (ctaHandleResult && isCtaModalForm) {
         ctaHandleResult('success');
         return;
       }
@@ -545,7 +553,7 @@
           .then(function (res) {
             setLoading(false);
             if (res.ok) {
-              if (ctaHandleResult && form.elements.ctaReasonPreset) {
+              if (ctaHandleResult && isCtaModalForm) {
                 ctaHandleResult('success');
               } else {
                 setFormAlert(
@@ -565,7 +573,7 @@
                 var input = form.elements[name];
                 if (input) input.classList.remove('is-error', 'is-success');
               });
-            } else if (ctaHandleResult && form.elements.ctaReasonPreset) {
+            } else if (ctaHandleResult && isCtaModalForm) {
               ctaHandleResult('error');
             } else {
               setFormAlert(
@@ -585,7 +593,7 @@
           })
           .catch(function () {
             setLoading(false);
-            if (ctaHandleResult && form.elements.ctaReasonPreset) {
+            if (ctaHandleResult && isCtaModalForm) {
               ctaHandleResult('error');
               return;
             }
@@ -607,8 +615,14 @@
       }
 
       if (mailtoEmail) {
-        var isCtaForm = !!form.elements.ctaReasonPreset;
-        if (ctaHandleResult && isCtaForm) {
+        // Two genuinely different questions (2026-09-14, plan Phase
+        // 5.7b): does THIS form have a #cta-result screen to swap in
+        // (isCtaModalForm, only the sitewide modal) vs. does it use the
+        // structured ctaField{n}/Motif composer instead of a free-text
+        // "message" field (hasStructuredFields -- true for both forms
+        // now that "Formulaire de contact" shares the same field set).
+        var hasStructuredFields = !!form.elements.ctaReasonPreset;
+        if (ctaHandleResult && isCtaModalForm) {
           // Real, honest distinction (2026-09-11, client-found): a
           // mailto: link is fire-and-forget -- the browser hands off to
           // whatever the OS has registered (or nothing, if no mail
@@ -634,7 +648,7 @@
           return el ? el.value.trim() : '';
         };
         var subject, body;
-        if (isCtaForm) {
+        if (hasStructuredFields) {
           // The "Prendre rendez-vous" modal -- no free-text message field,
           // composes from the agnostic ctaField{n}/ctaFieldLabel{n} pairs
           // (2026-09-14, plan Phase 5.7, second revision) plus Motif,
@@ -660,7 +674,8 @@
           // has a value when the selected motif's own "Précision"
           // setting revealed it.
           var motifPrecision = get('ctaMotifPrecision');
-          if (motifPrecision) lines.push('Précisez votre demande de rendez-vous : ' + motifPrecision);
+          if (motifPrecision)
+            lines.push('Précisez votre demande de rendez-vous : ' + motifPrecision);
           body = lines.join('\n');
         } else {
           subject = 'Message de ' + (get('prenom') + ' ' + get('nom')).trim();

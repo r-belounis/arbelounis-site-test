@@ -2449,6 +2449,14 @@ body[data-cta-arrow=on] .btn-sec:hover::after {
   margin-bottom: 20px;
 }
 
+/* Real edge case (2026-09-14, plan Phase 5.7b) -- "Formulaire de
+   contact" in "Téléphone uniquement" mode shows a plain phone link
+   instead of a form; .btn-cta/.btn-cta-primary already carry the real
+   button look, this only spaces it like the rest of the form would. */
+.contact-form-phone-only {
+  margin: 0;
+}
+
 /* One shared legend for the whole form (2026-09-14, plan Phase 5.7) --
    replaces a verbose "obligatoire"/"optionnel" word repeated on every
    field. Quiet by design: small, dimmed text, stated once. */
