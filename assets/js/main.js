@@ -716,6 +716,7 @@
     var ctaModalSeparator = ctaModalPanel.querySelector('.cta-modal-separator');
     var ctaModalCall = ctaModalPanel.querySelector('.cta-modal-call');
     var ctaModalAlertWrap = ctaModalPanel.querySelector('.form-alert-wrap');
+    var ctaModalLegend = ctaModalPanel.querySelector('.contact-form-legend');
 
     function ctaModalFocusable() {
       return Array.prototype.slice.call(
@@ -799,6 +800,7 @@
       if (ctaModalSeparator) ctaModalSeparator.hidden = true;
       if (ctaModalCall) ctaModalCall.hidden = true;
       if (ctaModalAlertWrap) ctaModalAlertWrap.hidden = true;
+      if (ctaModalLegend) ctaModalLegend.hidden = true;
       ctaResultEl.hidden = false;
       ctaResultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     };
@@ -811,6 +813,7 @@
       if (ctaModalForm) ctaModalForm.hidden = false;
       if (ctaModalSeparator) ctaModalSeparator.hidden = false;
       if (ctaModalCall) ctaModalCall.hidden = false;
+      if (ctaModalLegend) ctaModalLegend.hidden = false;
       // Real bug found live (2026-09-14): a Turnstile token is single-use
       // -- after one failed/errored submit, "Réessayer" showed the form
       // again with the widget still visually "checked", but that same

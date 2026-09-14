@@ -2,4 +2,4 @@ User-agent: CCBot
 Disallow: /
 User-agent: *
 Disallow:
-Sitemap: https://arbelounis.site/sitemap.xml
+Sitemap: https://renardier-theme.arbelounis.site/sitemap.xml
